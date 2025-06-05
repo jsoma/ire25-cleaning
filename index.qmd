@@ -1,0 +1,508 @@
+---
+title: 30 data cleaning tips in 60 minutes
+format:
+    html:
+        toc: true
+        toc-depth: 3
+        theme: cosmo
+        linkcolor: red
+---
+
+This is a workshop for [IRE 2024](https://schedules.ire.org/ire-2024/) about **a few general data cleaning tips!** It's taught by me, [Jonathan Soma](https://jonathansoma.com/everything/), Knight Chair in Data Journalism at Columbia Journalism School.
+
+**Contact:** Find me at [@dangerscarf](https://twitter.com/dangerscarf) or [js4571@columbia.edu](mailto:js4571@columbia.edu).
+
+**Other things:** You might also be interested in my series [Practical AI for Investigative Journalism](https://www.youtube.com/playlist?list=PLewNEVDy7gq1_GPUaL0OQ31QsiHP5ncAQ) or my website [Everything I Know](https://jonathansoma.com/everything/)
+
+
+## Content
+
+**Slides:** Slides are [here](https://raw.githubusercontent.com/jsoma/ire24-cleaning/main/slides.pdf)
+
+This stuff really only makes sense once you've tried it out, so we also have worksheets!
+
+**Google Sheets**
+
+- [Blank worksheet](https://docs.google.com/spreadsheets/d/1j4-X60X-n-fV-drlVzgVpejHaYOV0kywtBXyJnXcdEA/edit?usp=sharing)
+- [Completed worksheet](https://docs.google.com/spreadsheets/d/12lm2_pWDv8W5n83Qc2h3XRcmt-G8T4IYG1jO8Bsv_U0/edit?usp=sharing)
+- [Completed worksheet from in class](https://docs.google.com/spreadsheets/d/1hnM7Tl_fiwXFzb7nVDlvH6oA8Dj4ecch31kEMrkpQEQ/edit?usp=sharing) (which definitely has less stuff in it than the other completed one!)
+
+**Python**
+
+- [Blank worksheet](https://github.com/jsoma/ire24-cleaning/blob/main/pandas%20data%20cleaning%20worksheet.ipynb), [open in Google Colab](https://colab.research.google.com/github/jsoma/ire24-cleaning/blob/main/pandas%20data%20cleaning%20worksheet.ipynb)
+- [Completed worksheet](https://github.com/jsoma/ire24-cleaning/blob/main/COMPLETED%20pandas%20data%20cleaning%20worksheet.ipynb), [open in Google Colab](https://colab.research.google.com/github/jsoma/ire24-cleaning/blob/main/COMPLETED%20pandas%20data%20cleaning%20worksheet.ipynb)
+
+You can also see the [original GitHub repository](https://github.com/jsoma/ire24-scraping)
+
+# Text manipulation
+
+##  Substitute with nothing
+
+Let's say you have `66 years old` and just want the `66`. The easiest approach is to just remove the ` years old` portion.
+
+::: {.panel-tabset}
+
+### Spreadsheet
+
+The worst thing about Sheets is there is a `REPLACE` *and* there is a `SUBSTITUTE`. You want `SUBSTITUTE`, as `REPLACE` absolutely does NOT do what you want.
+
+```go
+=SUBSTITUTE(A2, " years old", "")
+```
+
+### Python
+
+In pandas, `.replace` will replace entire cells of data, while `.str.replace` is better for replacing *portions* of the content.
+
+```py
+df['age'].str.replace(" years old", "")
+```
+
+:::
+
+##  Convert to a number
+
+If you converted `66 years old` to juse `66`, you usually *also* have to make sure your software knows it's a number. This is formally known as "type casting."
+
+::: {.panel-tabset}
+
+### Sheets
+
+Use `VALUE(...)` to turn text into a number.
+
+```py
+=VALUE(SUBSTITUTE(A2, " years old", ""))
+```
+
+### Python
+
+Use `.astype(int)` or `.astype(float)` to turn text into a number. If there are missing values you *must* use `.astype(float)`, even if there are no decimals in the numbers!
+
+```py
+df['age'].str.replace(" years old", "").astype(int)
+```
+
+:::
+
+##  Split
+
+If you have text that looks like `j soma, js4571@columbia.edu, @dangerscarf` and want to get each section individually, you can split on the `, `. The result will now take up multiple columns.
+
+::: {.panel-tabset}
+
+### Sheets
+
+By default, splitting on `", "` will split on *either comma or space*. To tell Sheets that you want to split on a comma AND a space, you add `false`.
+
+```go
+=SPLIT(A2, ", ", false)
+```
+
+Most of the time you'll just be splitting on one symbol - a space, a `|`, something like that - so you won't need to use that part.
+
+```go
+=SPLIT(A2, ", ")
+```
+
+### Python
+
+Using `.str.split` with `expand=True` will give you a secondary dataframe.
+
+```py
+df['details'].str.split(", ", expand=True)
+```
+
+ Usually you'd use `.join` to add it back to the original `df`.
+
+```py
+details = df['details'].str.split(", ", expand=True)
+details.columns = ['name', 'email', 'handle']
+df = df.join(details)
+df.head()
+```
+:::
+
+## Split and get first (...or second or third)
+
+If you have text that looks like `j soma, js4571@columbia.edu, @dangerscarf` and want to just get the email address, you can split and ask for the second portion.
+
+::: {.panel-tabset}
+
+### Sheets
+
+Take your `SPLIT` code and wrap it in `INDEX`. The final number is 1 for the first one, 2 for the second one, etc. Below we split on `", "` and take the second part.
+
+```go
+=INDEX(SPLIT(A2, ", ", false), 2)
+```
+
+### Python
+
+Take your split code, and add `.str[...]` onto the end. The `...` is the index of the part you're looking for. `[0]` would be the first segment, `[1]` would be the second, etc.
+
+```py
+# Split on ", " and take the second part
+df['details'].str.split(", ").str[1]
+```
+
+:::
+
+## Split and get last
+
+::: {.panel-tabset}
+
+### Sheets
+
+Getting the last one in Sheets is a real pain because you need to use `COUNTA` and duplicate your split formula in order to count the number of items you created.
+
+```go
+=INDEX(SPLIT(A2, ", ", false), COUNTA(SPLIT(A2, ", ", false)))
+```
+
+If you want to feel jealous look at the Python version.
+
+### Python
+
+The best thing about Python is using negative numbers to step backwards. `.str[-1]` gives you the last element.
+
+```py
+df['details'].str.split(", ").str[-1]
+```
+
+:::
+
+## Double split!!!
+
+Honestly, just do this across multiple columns.
+
+If you have `j soma, js4571@columbia.edu, @dangerscarf`, split once on `", "` to split up the pieces and take the second one. Then split again on `"@"` and take the second portion.
+
+<!-- 
+## Split on many characters
+
+::: {.panel-tabset}
+
+### Sheets
+
+```go
+```
+
+### Python
+
+```py
+```
+
+::: 
+-->
+
+## Get last (or first) *n* characters 
+
+::: {.panel-tabset}
+
+### Sheets
+
+This will get the final twelve characters in a cell.
+
+```go
+=RIGHT(F2, 12)
+```
+
+If you want to get the *first* twelve, use `=LEFT` instead.
+
+### Python
+
+Let's get the final twelve characters of the `details` column.
+
+```py
+df['details'].str[-12:]
+```
+
+If you want to get the *first* twelve, you use `[:5]` instead
+
+```py
+df['details'].str[:12]
+```
+
+:::
+
+# Regex
+
+**Just ask ChatGPT**, honestly. Your job is to proof the results, not understand the process.
+
+## Match everything
+
+When you want to extract something with regular expressions, you wrap it in parentheses. 
+
+ I am 66 years old
+ I am (66) years old
+ I am (.*) years old
+
+The `.*` means anything could be inside of the matched part - numbers, text, symbols, etc.
+
+::: {.panel-tabset}
+
+### Sheets
+
+```go
+=REGEXEXTRACT(A2, "I am (.*) years old")
+```
+
+### Python
+
+```py
+df['details'].str.extract(r"I am (.*) years old")
+```
+
+:::
+
+Don't forget you might need to convert the result to a number! (see above)
+
+## Numbers ONLY
+
+You can also use regex to only match numbers. For example, if you wanted to find a phone number formatted like `555-555-5555`, you would replace every number with a `\d`.
+
+In this case, it would end up as `(\d\d\d-\d\d\d-\d\d\d\d)`.
+
+::: {.panel-tabset}
+
+### Sheets
+
+```go
+=REGEXEXTRACT(A2, "(\d\d\d-\d\d\d-\d\d\d\d)")
+```
+
+### Python
+
+```py
+df['details'].str.extract(r"(\d\d\d-\d\d\d-\d\d\d\d)")
+```
+
+:::
+
+## Optional elements
+
+Maybe the phone number could be formatted as 555-555-5555 *or* 
+
+Put a question mark after anything that's optional `(\d\d\d-?\d\d\d-?\d\d\d\d)`.
+
+## Anything
+
+Maybe the phone number could be formatted as 555-555-5555 *or* 5555555555 *or* 555+555+
+
+Instead of demanding we match an optional `-`, we can use `.` to say "this could be ANY character" in here.
+
+Our final regex would look like `(\d\d\d.?\d\d\d.?\d\d\d\d)`.
+
+## Escaping
+
+One problem in regex is if you want to match a special character. If we wanted to use `.` to talk about an *actual* period instead of the "this could be anything," we'd write `\.` instead.
+
+## Replace [...] in Google Sheets without a formula
+
+Since `[` and `]` are special characters, you need to escape them! To replace `[u]` or `[x]` or `[example]`, your pattern is going to be `\[.*?\[`.
+
+ Our original content: `[u]`
+ Replace "anything" with `.`: `[.]`
+ Add `\` to special characters: `\[.\]`
+
+## Matches pattern, not replaces
+
+While you usually use regex for extracting information, sometimes you just want a yes/no about whether it exists.
+
+::: {.panel-tabset}
+
+### Sheets
+
+```go
+=REGEXMATCH(A2, "\d\d\d-\d\d\d-\d\d\d\d")
+```
+
+### Python
+
+```py
+df['details'].str.contains(r"\d\d\d-\d\d\d-\d\d\d\d")
+```
+
+:::
+
+# Other things
+
+## ARRAYFORMULA
+
+Instead of dragging down a formula, use `ARRAYFORMULA`!
+
+::: {.panel-tabset}
+
+### Sheets
+
+If you have a formula and you want it to apply to every row, you *could* just type it out and then drrraaagggg it down the page.
+
+```go
+=VALUE(SUBSTITUTE(A2, " years old", ""))
+```
+
+Instead, write it in *one cell*, wrap it in `ARRAYFORMULA`, and adjust your cell reference from (for example) just `A2` to `A2:A`. This applies it to every single cell in the column, starting from the second row.
+
+```go
+=ARRAYFORMULA(VALUE(SUBSTITUTE(A2:A, " years old", "")))
+```
+
+:::
+
+## Missing data
+
+::: {.panel-tabset}
+
+### Sheets
+
+```go
+=IF(ISBLANK(A2), "", ...your formula...)
+```
+
+The only problem with `ARRAYFORMULA` is that it goes alllll the way down the page, even for rows that don't have data! If you nudge an `IF` and `ISBLANK` in there, though, you'll be good to go.
+
+```go
+=ARRAYFORMULA(IF(ISBLANK(A2,A), "", VALUE(SUBSTITUTE(A2:A, " years old", ""))))
+```
+
+
+:::
+
+## Geocoding
+
+Geocoding is the act of converting from addresses to latitude and longitude.
+
+* Drag and drop: [Geocodio](https://geocod.io/)
+* Sheets: [Geocode by Awesome Table](https://workspace.google.com/marketplace/app/geocode_by_awesome_table/904124517349)
+* Python: [Geocoder](https://geocoder.readthedocs.io/)
+
+If your addresses are all in one column, Geocodio requires you to split it into street, city, state, etc. You can probably do that with splitting or regex, as covered above!
+
+## Reverse geocoding
+
+*Reverse* geocoding is the act of converting from latitude and longitude to approximate addresses.
+
+* Drag and drop: [Geocodio](https://geocod.io/)
+* Sheets: [Geocode by Awesome Table](https://workspace.google.com/marketplace/app/geocode_by_awesome_table/904124517349)
+* Python: [Geocoder](https://geocoder.readthedocs.io/)
+
+:::
+
+## Text analysis: Edit distance and fuzzy matching
+
+Sometimes you need to combine "Jonathan Soma," "Jonathan P Soma," and "Soma, Jonathan" all into one listing. Fuzzy matching is what you're looking for!
+
+* Non-coding: [OpenRefine](https://openrefine.org/)
+* Python: [csvmatch](https://github.com/maxharlow/csvmatch)
+
+## Text analysis: Entity extraction
+
+I could talk forever about entity extraction! Check out [this workshop I gave at Abraji](https://jsoma.github.io/2023-abraji-ai-workshop/) for more details.
+
+# Table formatting
+
+## Transposing
+
+Transposing is when you switch rows and columns. If you ever have a chart in [Datawrapper](https://app.datawrapper.de/) that looks awful, that might be your solution! They have a "Transpose" button in the step for checking your data.
+
+## Convert from long to wide
+
+::: {.panel-tabset}
+
+### Sheets
+
+[Go watch this](https://www.youtube.com/watch?v=IC6COa5PcN0)
+
+### Python
+
+[Read the pandas documentation!](https://pandas.pydata.org/docs/user_guide/reshaping.html)
+
+:::
+
+## Convert from wide to long
+
+::: {.panel-tabset}
+
+### Sheets
+
+[Go read this](https://www.benlcollins.com/spreadsheets/unpivot-in-google-sheets/)
+
+### Python
+
+[Read the pandas documentation!](https://pandas.pydata.org/docs/user_guide/reshaping.html)
+
+:::
+
+# AI stuff
+
+## Audio transcription
+
+Everything is based on [Whisper](https://github.com/openai/whisper), but the only thing you need to know about it is that larger models are slower but perform better.
+
+* MacOS: [MacWhisper](https://goodsnooze.gumroad.com/l/macwhisper)
+* Windows: [EasyWhisper](https://easywhisper.io/)
+* Python: [Insanely Fast Whisper](https://github.com/Vaibhavs10/insanely-fast-whisper)
+
+## OCR with open models 
+
+If you're still using Tesseract, you're doing yourself a disservice! Apparently this new one, [Florence 2](https://huggingface.co/spaces/gokaygokay/Florence-2), is really good.
+
+Go look at my [PDFs section](https://jonathansoma.com/everything/pdfs/selecting-your-tool/) on Everything I Know.
+
+## OCR corrections
+
+If you have a bad OCR, try pushing it through a large language model like ChatGPT. It's great at making assumptions and fixing typos! Even if it hallucinates, it's probably better than what you had initially (and you're sure to double-check, right??).
+
+## Claude in Google Sheets
+
+Maybe you have an unformatted document and want to pull out the company's name from it, but even regex has failed you. 
+
+[Claude for Sheets](https://workspace.google.com/marketplace/app/claude_for_sheets/909417792257) is like magic! Great for extracting content. You'll need an [API key](https://console.anthropic.com/settings/keys) to set it up, which is like a username/password for using the LLM outside of the chatbot.
+
+```go
+=CLAUDEEXTRACT("company name", A2)
+```
+
+Watch my video [Structured, validated data from LLMs for more details](https://www.youtube.com/watch?v=5MHEMedLWeI)
+
+## Guardrails/Instructor
+
+You can also extract structured data from LLMs using tools like [Instructor](https://python.useinstructor.com/) or [Guardrails](https://github.com/guardrails-ai/guardrails). I used to be a Guardrails guy, but it's honestly way too overengineered. I'm on team Instructor these days.
+
+Let's say we had some content that looks like this.
+
+```py
+comment = """
+FROM: Mulberry Peppertown, mulberry (at) example.com
+
+When I pick up the cans of beans they are all so light! At
+first I thought they were empty, but it turns out they are just
+futuristic beans that are not heavy like the old style beans 
+I was used to. It is incredible.
+"""
+```
+
+We can use Instructor to extract the content we're looking for in a structured way.
+
+```py
+class Comment(BaseModel):
+    name: str = Field(description="Person who submitted the comment")
+    email: Optional[str] = Field(description="Email address of commenter")
+    food_item: str = Field(description="Food item the comment is about")
+    emotion: Literal["positive", "negative", "uncertain"]
+
+client = instructor.from_openai(OpenAI())
+
+result = client.chat.completions.create(
+    response_model=Comment,
+    messages=[{"role": "user", "content": comment}],
+    max_retries=3
+)
+result
+```
+
+The best part is the `max_retries` bit - if the LLM gives us something that *doesn't* fit the schema, Instructor just asks it to fix it!
+
+# Contact
+
+Feel free to reach out! You can find me [on Twitter](https://twitter.com/dangerscarf) or on email at [js4571@columbia.edu](mailto:js4571@columbia.edu).
