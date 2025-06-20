@@ -8,7 +8,7 @@ format:
         linkcolor: red
 ---
 
-This is a workshop for [IRE 2024](https://schedules.ire.org/ire-2024/) about **a few general data cleaning tips!** It's taught by me, [Jonathan Soma](https://jonathansoma.com/everything/), Knight Chair in Data Journalism at Columbia Journalism School.
+This is a workshop for [IRE 2025](https://schedules.ire.org/ire-2025/) about **a few general data cleaning tips!** It's taught by me, [Jonathan Soma](https://jonathansoma.com/everything/), Knight Chair in Data Journalism at Columbia Journalism School.
 
 **Contact:** Find me at [@dangerscarf](https://twitter.com/dangerscarf) or [js4571@columbia.edu](mailto:js4571@columbia.edu).
 
@@ -17,7 +17,7 @@ This is a workshop for [IRE 2024](https://schedules.ire.org/ire-2024/) about **a
 
 ## Content
 
-**Slides:** Slides are [here](https://raw.githubusercontent.com/jsoma/ire24-cleaning/main/slides.pdf)
+**Slides:** Slides are [here](https://raw.githubusercontent.com/jsoma/ire25-cleaning/main/slides.pdf)
 
 This stuff really only makes sense once you've tried it out, so we also have worksheets!
 
@@ -29,10 +29,10 @@ This stuff really only makes sense once you've tried it out, so we also have wor
 
 **Python**
 
-- [Blank worksheet](https://github.com/jsoma/ire24-cleaning/blob/main/pandas%20data%20cleaning%20worksheet.ipynb), [open in Google Colab](https://colab.research.google.com/github/jsoma/ire24-cleaning/blob/main/pandas%20data%20cleaning%20worksheet.ipynb)
-- [Completed worksheet](https://github.com/jsoma/ire24-cleaning/blob/main/COMPLETED%20pandas%20data%20cleaning%20worksheet.ipynb), [open in Google Colab](https://colab.research.google.com/github/jsoma/ire24-cleaning/blob/main/COMPLETED%20pandas%20data%20cleaning%20worksheet.ipynb)
+- [Blank worksheet](https://github.com/jsoma/ire25-cleaning/blob/main/pandas%20data%20cleaning%20worksheet.ipynb), [open in Google Colab](https://colab.research.google.com/github/jsoma/ire25-cleaning/blob/main/pandas%20data%20cleaning%20worksheet.ipynb)
+- [Completed worksheet](https://github.com/jsoma/ire25-cleaning/blob/main/COMPLETED%20pandas%20data%20cleaning%20worksheet.ipynb), [open in Google Colab](https://colab.research.google.com/github/jsoma/ire25-cleaning/blob/main/COMPLETED%20pandas%20data%20cleaning%20worksheet.ipynb)
 
-You can also see the [original GitHub repository](https://github.com/jsoma/ire24-scraping)
+You can also see the [original GitHub repository](https://github.com/jsoma/ire25-scraping)
 
 # Text manipulation
 
@@ -453,21 +453,22 @@ Go look at my [PDFs section](https://jonathansoma.com/everything/pdfs/selecting-
 
 If you have a bad OCR, try pushing it through a large language model like ChatGPT. It's great at making assumptions and fixing typos! Even if it hallucinates, it's probably better than what you had initially (and you're sure to double-check, right??).
 
-## Claude in Google Sheets
+## AI in Google Sheets
 
 Maybe you have an unformatted document and want to pull out the company's name from it, but even regex has failed you. 
 
-[Claude for Sheets](https://workspace.google.com/marketplace/app/claude_for_sheets/909417792257) is like magic! Great for extracting content. You'll need an [API key](https://console.anthropic.com/settings/keys) to set it up, which is like a username/password for using the LLM outside of the chatbot.
+[Claude for Sheets](https://workspace.google.com/marketplace/app/claude_for_sheets/909417792257) and Google's new Gemini (in Gooele Sheets) is like magic! Great for extracting content. For Claude you'll need an [API key](https://console.anthropic.com/settings/keys) to set it up, which is like a username/password for using the LLM outside of the chatbot. For Gemini it'll just... work.
 
 ```go
 =CLAUDEEXTRACT("company name", A2)
+=AI("company name", A2)
 ```
 
 Watch my video [Structured, validated data from LLMs for more details](https://www.youtube.com/watch?v=5MHEMedLWeI)
 
-## Guardrails/Instructor
+## Structured Outputs
 
-You can also extract structured data from LLMs using tools like [Instructor](https://python.useinstructor.com/) or [Guardrails](https://github.com/guardrails-ai/guardrails). I used to be a Guardrails guy, but it's honestly way too overengineered. I'm on team Instructor these days.
+You can also extract structured data from LLMs using Pydantic with [Structured Outputs](https://platform.openai.com/docs/guides/structured-outputs). It works with other LLMs, too, and looks basically the same.
 
 Let's say we had some content that looks like this.
 
@@ -482,7 +483,7 @@ I was used to. It is incredible.
 """
 ```
 
-We can use Instructor to extract the content we're looking for in a structured way.
+We can use Pydantic to extract the content we're looking for in a structured way.
 
 ```py
 class Comment(BaseModel):
@@ -491,17 +492,15 @@ class Comment(BaseModel):
     food_item: str = Field(description="Food item the comment is about")
     emotion: Literal["positive", "negative", "uncertain"]
 
-client = instructor.from_openai(OpenAI())
+client = OpenAI()
 
-result = client.chat.completions.create(
+result = client.beta.chat.completions.parse(
     response_model=Comment,
     messages=[{"role": "user", "content": comment}],
     max_retries=3
 )
-result
+comment = result.choices[0].message.parsed
 ```
-
-The best part is the `max_retries` bit - if the LLM gives us something that *doesn't* fit the schema, Instructor just asks it to fix it!
 
 # Contact
 

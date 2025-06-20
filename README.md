@@ -4,4 +4,4 @@
 
 Jonathan Soma, Knight Chair in Data Journalism at Columbia Journalism School
 
-Go to [https://jsoma.github.io/ire25-cleaning/](https://jsoma.github.io/ire25-cleaning/) for all of the details!
+Go to [https://jsoma.github.io/ire25-cleaning/](https://jsoma.github.io/ire25-cleaning/) for the fancy website!
